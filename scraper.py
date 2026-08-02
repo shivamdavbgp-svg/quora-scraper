@@ -2,6 +2,7 @@ import asyncio
 import os
 from flask import Flask, jsonify
 from playwright.async_api import async_playwright
+from playwright_stealth import stealth_async
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
@@ -12,9 +13,12 @@ async def scrape_quora_logic(url):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         page = await context.new_page()
+        
+        # Apply stealth plugin to hide the fact that this is an automated browser
+        await stealth_async(page)
         
         await page.goto(url, wait_until="domcontentloaded")
         await page.wait_for_timeout(3000)
