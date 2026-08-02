@@ -24,18 +24,19 @@ async def scrape_quora_logic(url):
             await page.wait_for_timeout(2000)
             
         html = await page.content()
+        title = await page.title()
         await browser.close()
         
         soup = BeautifulSoup(html, 'html.parser')
         results = []
         
-        content_divs = soup.find_all('div', class_=lambda x: x and ('q-box' in x or 'q-text' in x))
-        for div in content_divs:
-            text = div.get_text(separator=' ', strip=True)
-            if len(text) > 50 and text not in results:
+        # Fallback extraction: grab paragraphs or spans with meaningful text
+        for tag in soup.find_all(['p', 'span']):
+            text = tag.get_text(separator=' ', strip=True)
+            if len(text) > 80 and text not in results:
                 results.append(text)
                 
-        return results
+        return {"title": title, "results": results[:20]} # limit to 20 results
 
 @app.route('/')
 def home():
@@ -43,11 +44,16 @@ def home():
 
 @app.route('/scrape')
 def trigger_scrape():
-    # We use asyncio.run to execute the async function inside the synchronous Flask route
     try:
         url = "https://www.quora.com/topic/Technology"
-        data = asyncio.run(scrape_quora_logic(url))
-        return jsonify({"status": "success", "url": url, "data_count": len(data), "data": data})
+        extracted = asyncio.run(scrape_quora_logic(url))
+        return jsonify({
+            "status": "success", 
+            "url": url, 
+            "page_title": extracted["title"],
+            "data_count": len(extracted["results"]), 
+            "data": extracted["results"]
+        })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
